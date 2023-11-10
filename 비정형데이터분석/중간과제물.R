@@ -1,4 +1,4 @@
-setwd("/home/hshziwo/공부/R/방송통신대/비정형데이터분석")
+setwd("/home/hshziwo/공부/KNOU-Study/비정형데이터분석")
 
 #install.packages("rvest")
 #install.packages("dplyr")

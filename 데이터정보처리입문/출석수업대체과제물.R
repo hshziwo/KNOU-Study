@@ -1,4 +1,4 @@
-setwd("/home/hshziwo/공부/R/방송통신대/데이터정보처리입문")
+setwd("/home/hshziwo/공부/KNOU-Study/데이터정보처리입문")
 
 score = scan("score.txt")
 mean(score)

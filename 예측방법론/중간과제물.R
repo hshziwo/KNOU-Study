@@ -1,4 +1,4 @@
-setwd("/home/hshziwo/공부/R/방송통신대/예측방법론")
+setwd("/home/hshziwo/공부/KNOU-Study/예측방법론")
 #original = read.csv("전산업생산지수_원지수.csv",header=T, 
 #                            fileEncoding = "euc-kr")
 #head(original)

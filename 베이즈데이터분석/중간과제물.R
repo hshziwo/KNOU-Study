@@ -1,4 +1,4 @@
-setwd("/home/hshziwo/공부/R/방송통신대/베이즈데이터분석")
+setwd("/home/hshziwo/공부/KNOU-Study/베이즈데이터분석")
 
 #2.(b) theta의 95% 신용구간
 alpha = 27/2
