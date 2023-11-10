@@ -1,0 +1,27 @@
+# X11(height = 4.5, width = 7.5)
+# plot(c(0,0),c(28,60), type = "p", xlim = c(0,28), ylim = c(-5,65),
+#      xlab = "순서", ylab = "재위기간", main = "조선왕조")
+# points(1:27, period, pch=21, col="red")
+# # segments(1:27, rep(0,27), 1:27, period, lwd=3, col = "blue")
+# for(i in 1:27) lines(c(i,i), c(0,period[i]), lwd=3, col="blue")
+# abline(h=c(0,mean(period)), lty="dotted", lwd=1, col="black")
+
+# X11(height = 5, width = 4.5)
+# plot(c(0,25), c(0,500), type="p")
+# rect(5,100,10,200, col = "royalblue", border = "red")
+
+# X11(height = 8, width = 7.5)
+# P = cumsum(period)
+# plot(1:27,P,type = "p",xlab = "순서",ylab = "누적 연수", main = "조선왕조")
+# rect(0,0,1,P[1], col = "royalblue", border = "royalblue")
+# for (i in 2:27)
+#   rect(i-1,P[i-1],i,P[i], col = "royalblue", border = "royalblue")
+# segments(0,0,27,518,lty="dotted")
+
+X11(height = 8, width = 7.5)
+P = cumsum(period)
+plot(1:27,P,type = "p",xlab = "순서",ylab = "누적 연수", main = "조선왕조")
+polygon(c(0,0,1,1), c(0,P[1],P[1],0), col=rainbow(27)[1])
+for (i in 2:27)
+  polygon(c(i-1,i-1,i,i), c(P[i-1],P[i],P[i],P[i-1]), col=rainbow(27)[i])
+segments(0,0,27,518,lty="dotted")

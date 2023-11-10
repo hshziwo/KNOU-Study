@@ -1,0 +1,6 @@
+setwd("/home/hshziwo/공부/R/방송통신대/회귀모형/2.다중회귀모형")
+factory = read.table("./ex3", header=T, sep="\t")
+factory.lm = lm(y ~ x1 + x2 + x3, data=factory)
+summary(factory.lm) #3.(1),(2),(3)
+anova(factory.lm)
+predict(factory.lm, newdata = data.frame(x1 = 20, x2=27, x3=60)) #2.(3)
