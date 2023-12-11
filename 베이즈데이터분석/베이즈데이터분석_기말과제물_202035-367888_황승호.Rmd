@@ -1,0 +1,324 @@
+---
+title: "베이즈데이터분석 기말과제물"
+author: "202035-367888 황승호"
+date: "2023-11-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+<br/>
+**1.\ 밀도함수 $f(x)= \frac{1}{C}x^{2}sin(x), x\in(0, \pi)$ 
+를 고려하자.  
+여기서 상수 $C = \int_0^\pi x^2 sin(x)dx$이다.  
+다음의 질문에 답하시오.**
+
+**(a\) $U \sim U(0, \pi)$일 때, 상수 $C$를 확률변수 $U$의 기댓값으로 표현하시오.**
+
+<br/>
+교재의 1장에 따르면 확률변수 $x$가 연속형이면서 확률밀도함수가 $f(x)$일 때, $g(x)$의 기댓값은 다음과 같다.
+$$Eg(x) = \int g(x)f(x)dx$$
+
+이때, $U \sim U(0, \pi)$일 때 $U$의 확률밀도함수는
+$$f(x) = \frac{1}{b-a} = \frac{1}{\pi-0}=\frac{1}{\pi}$$이다.
+
+상수 C를 $g(x) =x^{2}sin(x)$라고 하면  $g(u)$의 기댓값은 다음과 같다.
+$$Eg(u) = \int_0^\pi u^2sin(u) \frac{1}{\pi}du$$
+
+위 식에서 적분의 성질에 의해 $\frac{1}{\pi}$를 좌변에 넘기면 아래와 같다.
+$$\pi Eg(u) = \int_0^\pi u^2sin(u)du$$
+
+이 때, $C = \int_0^\pi u^2sin(u)du$ 이므로
+$$C = \pi Eg(u)$$
+<br/>
+**(b\) 상수 $C$를 (a)에서 표현한 식을 이용해서 몬테 카를로 방법으로 구하시오.  
+이 때, 몬테 카를로 표본의 개수는 $m=1000$를 이용하시오. 계산은 R을 이용하시오.**
+<br/>
+```{r}
+m = 1000
+uniform_sample = runif(m, 0, pi)
+values = uniform_sample^2 * sin(uniform_sample) 
+c_hat = pi * mean(values)
+# 몬테 카를로 방법으로 구한 C
+c_hat
+```
+실제 적분을 통해 구한 값(약 5.87)과 몬테카를로 방법을 통해 구한 값은 오차가 있다. 이는 샘플 수가 작기 때문이기에 샘플 수를 늘리면 근사한다.
+
+<br/>
+**(c\) (b)에서 구한 상수 $C$값을 이용하여 밀도함수 $f(x)$의 그림을 R로 그리시오.**
+<br/>
+```{r}
+library(ggplot2)
+
+# f(x)에 대한 사용자 정의 함수 선언
+func = function(x) (1/c_hat) * x^2 * sin(x)
+
+# 분포 값 설정
+x_values = seq(0, pi, length = 1000)
+y_values = sapply(x_values, func)
+df = data.frame(x = x_values, y = y_values)
+
+ggplot(df, aes(x = x, y = y)) +
+  geom_line() +
+  xlab("x") +
+  ylab("f(x)")
+```
+
+<br/>
+<br/>
+**2.\ 다음은 1994년과 2014년 군에 입대하는 10명의 병사들의 몸무게를 잰 결과이다.**  
+1994년: 65.9, 55.9, 43.8, 57.7, 68.8, 23.1, 85.4, 62.8, 65.2, 49.9 (kg)   
+2014년: 68.3, 85.7, 73.8, 83.2, 58.9, **72.7**, 70.5, 58.7, 74.1, 75 (kg)  
+**(기존 7.27kg에서 게시판 문의 후 72.7kg으로 변경함.)**  
+
+1994년 군에 입대한 병사들의 몸무게를 $x_i, i=1,2,...,n (n=10),$  
+2014년 군에 입대한 병사들의 몸무게를 $y_i, i=1,2,...,n$라 하고, 다음의 모형을 상정하자. 
+
+$$\theta_1,\theta_2 \sim U(R)$$
+$$\sigma_1, \sigma_2 \sim g(\sigma) = \frac{1}{\sigma}, \sigma > 0$$
+$$x_1,..., x_n \sim N(\theta_1, \sigma_1^2)$$
+$$y_1,..., y_n \sim N(\theta_2, \sigma_2^2)$$  
+
+2014년 병사들의 몸무게의 평균과 1994년 병사들의 몸무게의 차이 $\theta_1 - \theta_2$에 대해 추론을 하고자 한다.  
+다음의 질문에 답하시오. 
+
+**(a\) 위 모형의 사후표본을 추출하기 위한 스탠과 R 코드를 작성하고 사후표본을 구하시오.  
+번인 5000개를 포함하여 총 15,000개의 사후표본을 추출하시오.**
+
+```{r}
+# 라이브러리 호출 , 병렬 처리 및 코드 저장을 위한 처리
+# 불필요 메세지 호출하지 않기 위해 suppressPackageStartupMessages 사용
+suppressPackageStartupMessages(library(rstan))
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+```
+
+```{r}
+# 데이터
+data = list(
+  n = 10,
+  x = c(65.9, 55.9, 43.8, 57.7, 68.8, 23.1, 85.4, 62.8, 65.2, 49.9),
+  y = c(68.3, 85.7, 73.8, 83.2, 58.9, 72.7, 70.5, 58.7, 74.1, 75)
+)
+```
+
+```{r}
+# 스탠 코드
+code = "
+data {
+  int<lower=0> n;  // 병사의 수
+  vector[n] x;     // 몸무게(1994)
+  vector[n] y;     // 몸무게(2014)
+}
+
+parameters {
+  real theta1;     // 몸무게 평균(1994)
+  real theta2;     // 몸무게 평균(2014)
+  real<lower=0> sigma1;  // 몸무게 표준편차(1994)
+  real<lower=0> sigma2;  // 몸무게 표준편차(2014)
+}
+
+model {
+  x ~ normal(theta1, sigma1);
+  y ~ normal(theta2, sigma2);
+  target += -log(sigma1); // target 사용 위해 로그 변환
+  target += -log(sigma2); // target 사용 위해 로그 변환
+ }
+"
+```
+
+```{r}
+# 스탠 모델 실행
+# iter = 전체 반복 횟수
+# warmup = burn-in 횟수, 5000 설정
+fit = stan(model_code=code, data = data, warmup = 5000, iter = 15000, seed=1234567)
+
+# 결과 출력
+print(fit)
+```
+
+<br/>
+**(b\) 모수들의 시계열 그림, 자기상관계수 그림을 그리고 마르코프 체인이 수렴했는지 판단하시오.  
+수렴하지 않았다고 판단되면 수렴했다고 판단할 때까지 사후표본의 크기를 늘리시오.**  
+
+```{r}
+# 시계열 그림
+plot(fit, plotfun="trace")
+```
+
+```{r}
+# 자기상관계수 그림
+plot(fit, plotfun="ac")
+```
+
+시계열 그림을 보면 패턴이 없고 무질서하므로, 수렴이 잘된 것으로 판단할 수 있다.  
+또한, 자기상관계수가 Lag 0에서 1 이후 급격하게 0으로 줄어드는 추세가 보이므로, 수렴이 충분히 잘 된 것으로 판단할 수 있다.
+
+<br/>
+**(c\) $\theta_1 - \theta_2$의 사후표본의 히스토그램을 그리시오.**
+<br/>
+```{r}
+# 추출
+fit_data = extract(fit)
+# 히스토그램
+hist(fit_data$theta1 - fit_data$theta2, breaks=100, main="theta1-theta2의 사후표본의 히스토그램", xlab="theta1-theta2")
+```
+
+<br/>
+**(d\) $\theta_1 - \theta_2$의 사후평균, 사후표준편차, 95% 신용구간을 구하시오.** 
+<br/>
+```{r}
+post = fit_data$theta1 - fit_data$theta2
+
+# 사후평균
+post_mean = mean(post)
+post_mean
+
+# 사후표준편차
+post_sd = sd(post)
+post_sd
+
+# 95% 신용구간
+quantiles = quantile(post, c(0.025, 0.975))
+quantiles
+```
+
+<br/>
+<br/>
+**3.다음은 R의 mtcars 데이터의 일부분이다. 두변수 mpg(마일/갤론)과 hp(마력)을 각각 x1와 x2로 나타내었다.**    
+  
+x1(mpg): 21.0 21.0 22.8 21.4 18.7 18.1 14.3 24.4 22.8 19.2 17.8 16.4 17.3 15.2 10.4 10.4 14.7 32.4 30.4 33.9 21.5 15.5 15.2 13.3 19.2 27.3 26.0 30.4 15.8 19.7 15.0 21.4  
+x2(hp): 110 110 93 110 175 105 245 62 95 123 123 180 180 180 205 215 230 66 52 65 97 150 150 245 175 66 91 113 264 175 335 109  
+
+두 변수 사이의 상관계수 $\rho$에 대해 추론하고자 다음의 모형을 고려하자.  
+$$x_{i} = (x_{i1}, x_{i2}) \sim N \left( \begin{pmatrix} \mu_{1} \\ \mu_{2} \end{pmatrix}, \begin{pmatrix} \sigma_{1}^{2} & \rho \sigma_{1} \sigma_{2} \\ \rho \sigma_{1} \sigma_{2} & \sigma_{2}^{2} \end{pmatrix} \right), \quad i = 1, 2, \dots, n$$
+
+모수들의 사전분포는 다음과 같다고 하자. 
+$$\mu_{1}, \mu_{2} \sim U(R)$$
+
+$$\sigma_{1}, \sigma_{2} \sim g(\sigma) = \frac{1}{\sigma}, \quad \sigma > 0$$
+
+$$\rho \sim g(\rho) = (1 - \rho^{2})^{-\frac{1}{2}}, \quad -1 < \rho < 1$$
+
+다음의 질문에 답하시오.  
+<br/>
+**(a\) 위 모형의 사후표본을 추출하기 위한 스탠과 R 코드를 작성하고 사후표본을 구하시오.  
+번인 5000개를 포함하여 총 15,000개의 사후표본을 추출하시오.**
+<br/>
+```{r}
+# 데이터
+x1 = c(21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7, 32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7, 15.0, 21.4)
+x2 = c(110, 110, 93, 110, 175, 105, 245, 62, 95, 123, 123, 180, 180, 180, 205, 215, 230, 66, 52, 65, 97, 150, 150, 245, 175, 66, 91, 113, 264, 175, 335, 109)
+df = data.frame(x1, x2)
+data = list(N=nrow(df), D=2, Y=df)
+```
+
+```{r}
+# 스탠 코드
+code = "
+functions {
+   // 사용자 정의 사전분포 함수 설정
+   // stan의 정의상 target에서는 로그변환 함수를 사용함
+   // 따라서, target에서 함수를 사용하기 위해 리턴값을 로그변환 처리
+   // 기존함수 : log((1 - rho^2)^(-1/2))
+   // 로그변환 함수 : -0.5 * log1m(square(rho))
+   // log1m == log(1-x)
+   
+   real rhofunc(real rho) {
+    return -0.5 * log1m(square(rho));
+   }
+ }
+
+data {
+  int N;           // 관측값 개수
+  int D;           // 변수의 개수
+  vector[D] Y[N];  // 관측값
+}
+
+parameters {
+  vector[D] mu;                  // 평균벡터
+  real<lower=0> sigma[D];        // 표준편차 
+  real<lower=-1, upper=1> rho;   // 상관계수
+}
+
+transformed parameters {
+    // 공분산행렬
+    cov_matrix[D] cov = [[sigma[1]^2, rho*sigma[1]*sigma[2]], 
+                          [rho*sigma[1]*sigma[2], sigma[2]^2]];
+}
+
+model {
+    // 가능도 함수
+    Y ~ multi_normal(mu, cov);
+
+    // 사전분포
+    target += -log(sigma[1]); // target 사용 위해 로그 변환
+    target += -log(sigma[2]); // target 사용 위해 로그 변환
+    target += rhofunc(rho); 
+}        
+"
+```
+
+```{r}
+# 스탠 모델 실행
+# iter = 전체 반복 횟수
+# warmup = burn-in 횟수, 5000 설정
+# "mu", "rho", "sigma" 만 뽑기 위해 pars 사용
+fit = stan(model_code=code, data = data, warmup = 5000, iter = 15000, seed=1234567,  pars = c("mu", "rho", "sigma"))
+
+# 결과 출력
+print(fit)
+```
+
+<br/>
+**(b\) 모수들의 시계열 그림, 자기상관계수 그림을 그리고 마르코프 체인이 수렴했는지 판단하시오.  
+수렴하지 않았다고 판단되면 수렴했다고 판단할 때까지 사후표본의 크기를 늘리시오.**  
+
+```{r}
+# 시계열 그림
+plot(fit, plotfun="trace")
+```
+
+```{r}
+# 자기상관계수 그림
+plot(fit, plotfun="ac")
+```
+
+시계열 그림을 보면 패턴이 없고 무질서하므로, 수렴이 잘된 것으로 판단할 수 있다.  
+또한, 자기상관계수가 Lag 0에서 1 이후 0으로 줄어드는 추세가 보이므로, 수렴이 충분히 잘 된 것으로 판단할 수 있다.
+
+<br/>
+**(c\) $\rho$의 사후표본의 히스토그램을 그리시오.  **
+
+```{r}
+# 추출
+fit_data = extract(fit)
+# 히스토그램
+hist(fit_data$rho, breaks=100, main="rho의 사후표본의 히스토그램", xlab="rho")
+```
+
+<br/>
+**(d\) $\rho$의 사후평균, 사후표준편차, 95% 신용구간을 구하시오. **
+
+```{r}
+post_rho = fit_data$rho
+
+# 사후평균
+post_mean = mean(post_rho)
+post_mean
+
+# 사후표준편차
+post_sd = sd(post_rho)
+post_sd
+
+# 95% 신용구간
+quantiles = quantile(post_rho, c(0.025, 0.975))
+quantiles
+```
+
+<br/>
+<br/>
+**[참고문헌]**
+<br/>
+이재용·이기재(2022), 베이즈 데이터 분석, 한국방송통신대학교출판문화원.   
